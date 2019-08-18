@@ -65,21 +65,22 @@ class SimpleNN:
         target_neuron = self.neurons[-1][a_index]
         diff = 2 if a_index == self.expected else 0
         return 2*target_neuron - diff
-    
+
     def dada(self, layer, index1, index2):
         weight = self.weights[layer-1][index2][index1]
         activation = self.neurons[layer][index2]
         return weight*activation*(1-activation)
-    
+
     def dadw(self, layer, source_index, target_index):
         src_neuron = self.neurons[layer-1][source_index]
         trgt_neuron = self.neurons[layer][target_index]
         return src_neuron*trgt_neuron*(1-trgt_neuron)
-    
+
     def dadb(self, layer, neuron_index):
         neuron = self.neurons[layer][neuron_index]
         return neuron*(1-neuron)
-    
+
+    # Checks if a particular derivative is memoized. If not, compute the derivative.
     def DPPartial(self, deriv_index):
         pass
 
@@ -126,7 +127,7 @@ class SimpleNN:
                 return partial*self.dadw(layer_level-1, var_coordinate[2], neuron_index)
             else:
                 return partial*self.dadb(layer_level-1, neuron_index)
-            
+
         # Starting recursive case
         elif n == 0:
             for i in range(len(self.neurons[layer_level-1])):
@@ -139,7 +140,7 @@ class SimpleNN:
 
                 result += partial * self.backProp(variable, n+1, i)
             return result
-        
+
         # General recursive case
         else:
             for i in range(layer_size):
