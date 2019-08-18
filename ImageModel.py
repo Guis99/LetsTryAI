@@ -60,9 +60,31 @@ class SimpleNN:
                 error += self.neurons[-1][i]**2
         return error
 
+    # Helper functions to calculate partial derivatives for backprop
+    def dcda(self, a_index):
+        target_neuron = self.neurons[-1][a_index]
+        diff = 2 if a_index == self.expected else 0
+        return 2*target_neuron - diff
+    
+    def dada(self, layer, index1, index2):
+        weight = self.weights[layer-1][index2][index1]
+        activation = self.neurons[layer][index2]
+        return weight*activation*(1-activation)
+    
+    def dadw(self, layer, source_index, target_index):
+        src_neuron = self.neurons[layer-1][source_index]
+        trgt_neuron = self.neurons[layer][target_index]
+        return src_neuron*trgt_neuron*(1-trgt_neuron)
+    
+    def dadb(self, layer, neuron_index):
+        neuron = self.neurons[layer][neuron_index]
+        return neuron*(1-neuron)
+    
+    def DPPartial(self, deriv_index):
+        pass
 
     # For the backpropagation stage
-    def backProp(self, variable, n = 0, result = 0, a_index = 0):
+    def backProp(self, variable, n = 0, a_index = 0):
         """
         Possibly the most important helper of all...
 
@@ -77,28 +99,34 @@ class SimpleNN:
         var_coordinate = variable[1]
         layer_level = self.size-n
         layer_size = len(self.neurons[layer_level-1])
+        neuron_index = var_coordinate[1]
+        result = 0
         # Special trivial case where weight or bias layer is the last one
         if self.size - var_coordinate[0] == 2:
-            derivative_index = ('C','a',var_coordinate[1])
-            neuron_index = var_coordinate[1]
-            target_neuron = self.neurons[-1][neuron_index]
+            derivative_index = ('C','a',neuron_index)
             if derivative_index in self.memo:
                 partial = self.memo[derivative_index]
             else:
-                partial = 2*(target_neuron-1) if neuron_index == self.expected else 2*target_neuron
+                partial = self.dcda(neuron_index)
                 self.memo[derivative_index] = partial
             if var_type == 'w':
-                return partial * target_neuron * self.neurons[-2][var_coordinate[2]] * (1 - target_neuron)
+                return partial * self.dadw(-1, var_coordinate[2], neuron_index)
             else:
-                return partial * target_neuron * (1 - target_neuron)
+                return partial * self.dadb(-1, neuron_index)
 
         # Base case
         if layer_level - var_coordinate[0] == 2:
-            current_neuron = self.neurons[layer_level][a_index]
-            if var_type == 'w':
-                return current_neuron*self.neurons[layer_level-1][var_coordinate[2]]*(1-current_neuron)
+            derivative_index = ('a',layer_level,neuron_index,a_index)
+            if derivative_index in self.memo:
+                    partial = self.memo[derivative_index]
             else:
-                return current_neuron*(1-current_neuron)
+                partial = self.dada(layer_level, neuron_index, a_index)
+                self.memo[derivative_index] = partial
+            if var_type == 'w':
+                return partial*self.dadw(layer_level-1, var_coordinate[2], neuron_index)
+            else:
+                return partial*self.dadb(layer_level-1, neuron_index)
+            
         # Starting recursive case
         elif n == 0:
             for i in range(len(self.neurons[layer_level-1])):
@@ -106,11 +134,12 @@ class SimpleNN:
                 if derivative_index in self.memo:
                     partial = self.memo[derivative_index]
                 else:
-                    partial = 2*(1-self.neurons[layer_level-1][i]) if i == self.expected else 2*self.neurons[layer_level-1][i]
+                    partial = self.dcda(i)
                     self.memo[derivative_index] = partial
 
-                result += partial * self.backProp(variable, n+1, 0, i)
+                result += partial * self.backProp(variable, n+1, i)
             return result
+        
         # General recursive case
         else:
             for i in range(layer_size):
@@ -121,7 +150,7 @@ class SimpleNN:
                     a_current = self.neurons[layer_level][a_index]
                     partial = a_current*self.weights[layer_level-1][a_index][i]*(1-a_current)
                     self.memo[derivative_index] = partial
-                result += partial * self.backProp(variable, n+1, 0, i)
+                result += partial * self.backProp(variable, n+1, i)
             return result
 
     def doGradientDescent(self, batch_size):
@@ -161,6 +190,4 @@ def calculate_test2():
     return 2*(a.neurons[3][2]-1)*a.neurons[2][0]*a.neurons[3][2]*(1-a.neurons[3][2])
 
 print(abs(calculate_test1() - a.backProp(('w', (0,1,0)))) < .00000000001)
-a.memo = {}
-print(a.backProp(('w', (2,2,0))), calculate_test2())
 print(abs(calculate_test2() - a.backProp(('w', (2,2,0)))) < .00000000001)
