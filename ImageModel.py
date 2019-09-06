@@ -9,12 +9,13 @@ from PIL import Image
 import time
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
-def sigmoidprime(x):
-    return sigmoid(x) * (1 - sigmoid(x))
+def LRAdjust(x):
+    return abs(np.exp(-x)*(np.cos(5*x) + np.sin(5*x)))
 
 class SimpleNN:
     def __init__(self, depth, layer_size, class_range, image_size):
@@ -22,7 +23,7 @@ class SimpleNN:
         self.class_range = class_range
         self.image_size = image_size
         self.memo = {} # For backpropagation DP
-        self.expected = 2
+        self.expected = 3
 
         # Initialize all neurons
         self.neurons = [[1 for i in range(self.image_size)]]
@@ -141,12 +142,18 @@ class SimpleNN:
             bias_array = self.biases[i]
             # Update biases according to gradient
             for j in range(len(bias_array)):
-                yield ('b{}{}'.format(i,j), self.backProp(('b', (i,j)))/batch_size)
+                yield ('b', i, j, self.backProp(('b', (i,j)))/batch_size)
             for j in range(len(matrix)):
                 row = matrix[j]
+                saved_grad_term = self.backProp(('w', (i,j,0)))/batch_size
+                first_neuron = self.neurons[i][0]
                 # Update weights according to gradient
                 for k in range(len(row)):
-                    yield ('w{}{}{}'.format(i,j,k), self.backProp(('w', (i,j,k)))/batch_size)
+                    if k == 0:
+                        result = saved_grad_term
+                    else:
+                        result = (self.neurons[i][k]/first_neuron) * saved_grad_term
+                    yield ('w', i, j, k, result)
 
 #start = time.time()
 #print('hello world')
@@ -157,8 +164,8 @@ class SimpleNN:
 TESTING BACKPROPAGATION
 """
 
-a = SimpleNN(2, 2, 3, 2)
-a.feedForward()
+#a = SimpleNN(2, 2, 3, 2)
+#a.feedForward()
 #def calculate_test1():
 #    t = 0
 #    dadw = a.neurons[0][0]*a.neurons[1][1]*(1-a.neurons[1][1])
@@ -178,13 +185,71 @@ a.feedForward()
 #    for i in range(3):
 #        dcda = 2*(a.neurons[3][i]-1) if i == a.expected else 2*a.neurons[3][i]
 #        dada = a.neurons[3][i]*(1-a.neurons[3][i])*a.weights[2][i][1]
-#        t += dcda*dada*dadw
+#        t += dcda*dada*dadw])
+#   
+#print(abs(calculate_test1() - a.backProp(('w', (0,1,0)))) < .00000000001)
+#print(abs(calculate_test2() - a.backProp(('w', (1,1,1)))) < .00000000001)
+#print(abs(calculate_test3() - a.backProp(('w', (2,2,0)))) < .00000000001)
+
 #    return t
 #
 #
 #def calculate_test3():
 #    return 2*(a.neurons[3][2]-1)*a.neurons[2][0]*a.neurons[3][2]*(1-a.neurons[3][2])
-#   
-#print(abs(calculate_test1() - a.backProp(('w', (0,1,0)))) < .00000000001)
-#print(abs(calculate_test2() - a.backProp(('w', (1,1,1)))) < .00000000001)
-#print(abs(calculate_test3() - a.backProp(('w', (2,2,0)))) < .00000000001)
+"""
+TESTING LEARNING ON 1 SAMPLE
+"""
+costs = []
+start = time.time()
+b = SimpleNN(2,16,10,784)
+for i in range(500):
+    b.feedForward()
+    if i == 0:
+        print('Initial vector: ')
+        for l in range(10):
+            if l == 0:
+                print('[' + str(b.neurons[-1][l]) + ',')    
+            elif l == 9:
+                print(str(b.neurons[-1][l]) + ']')
+            else:
+                print(str(b.neurons[-1][l]) + ',')
+    gradients = b.doGradientDescent(1)
+    if i % 50 == 0:
+        print('Cost at round {}: '.format(i), b.calculateError())
+    for j in gradients:
+        if j[0] == 'w':
+            b.weights[j[1]][j[2]][j[3]] -= j[-1]
+        else:
+            b.biases[j[1]][j[2]] -= j[-1]
+    costs.append(b.calculateError())
+            
+print('------------------')
+print('Result: ')
+for l in range(10):
+    if l == 0:
+        print('[' + str(b.neurons[-1][l]) + ',')    
+    elif l == 9:
+        print(str(b.neurons[-1][l]) + ']')
+    else:
+        print(str(b.neurons[-1][l]) + ',')
+print('Final cost: ', b.calculateError())
+classified = np.argmax(b.neurons[-1])
+print('Classified as: ', classified, ', Activation value: ', b.neurons[-1][classified])
+        
+end = time.time()
+print('Time to complete: ' + str(end-start) + ' seconds')
+
+f1 = plt.figure()
+plt.plot([i for i in range(500)], costs)
+plt.title('Cost over training steps')
+plt.xlabel("Training steps")
+plt.ylabel("Cost")
+
+f2 = plt.figure()
+plt.bar([i for i in range(10)], b.neurons[-1])
+plt.title('Final layer activatations')
+plt.xlabel('Integer range')
+plt.ylabel('Activation degree')
+
+plt.show()
+
