@@ -26,7 +26,7 @@ class SimpleNN:
         self.expected = 3
 
         # Initialize all neurons
-        self.neurons = [[1 for i in range(self.image_size)]]
+        self.neurons = [[random.random() for i in range(self.image_size)]]
         for i in range(depth):
             self.neurons.append([0 for i in range(layer_size)])
         self.neurons.append([0 for i in range(self.class_range)])
@@ -204,15 +204,6 @@ start = time.time()
 b = SimpleNN(2,16,10,784)
 for i in range(500):
     b.feedForward()
-    if i == 0:
-        print('Initial vector: ')
-        for l in range(10):
-            if l == 0:
-                print('[' + str(b.neurons[-1][l]) + ',')    
-            elif l == 9:
-                print(str(b.neurons[-1][l]) + ']')
-            else:
-                print(str(b.neurons[-1][l]) + ',')
     gradients = b.doGradientDescent(1)
     if i % 50 == 0:
         print('Cost at round {}: '.format(i), b.calculateError())
