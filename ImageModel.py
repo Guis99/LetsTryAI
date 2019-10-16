@@ -10,9 +10,9 @@ import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 
-training_data = []
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -36,10 +36,10 @@ class SimpleNN:
         self.size = len(self.neurons)
 
         # Initialize weights and biases
-        self.biases = np.array([[random.uniform(-3,3) for j in range(len(self.neurons[i+1]))] for i in range(self.size-1)])
-        self.weights = np.array([[[random.uniform(-3,3) for k in range(len(self.neurons[i]))]
-                                          for j in range(len(self.neurons[i+1]))]
-                                          for i in range(self.size - 1)])
+        self.biases = [np.array([random.uniform(-3,3) for j in range(len(self.neurons[i+1]))]) for i in range(self.size-1)]
+        self.weights = [np.array([[random.uniform(-3,3) for k in range(len(self.neurons[i]))]
+                                          for j in range(len(self.neurons[i+1]))])
+                                          for i in range(self.size - 1)]
 
     # The feed-forward stage
     def loadImage(self, image):
@@ -134,17 +134,17 @@ class SimpleNN:
 
         # Recursive case
         else:
-            if n == 0:
-                # For starting recursive case
-                return sum(self.DPPartial('C', i)*self.backProp(variable, n+1, i) for i in range(layer_size))
-            else:
-                return sum(self.DPPartial('a', layer_level, a_index, i)*self.backProp(variable, n+1, i) for i in range(layer_size))
-#            for i in range(layer_size):
-#                # Distinguishes between starting and general recursive case
-#                derivative_index = ('C',i) if n == 0 else ('a',layer_level,a_index,i) 
-#                partial = self.DPPartial(*derivative_index)
-#                result += partial * self.backProp(variable, n+1, i)
-#            return result
+#            if n == 0:
+#                # For starting recursive case
+#                return sum(self.DPPartial('C', i)*self.backProp(variable, n+1, i) for i in range(layer_size))
+#            else:
+#                return sum(self.DPPartial('a', layer_level, a_index, i)*self.backProp(variable, n+1, i) for i in range(layer_size))
+            for i in range(layer_size):
+                # Distinguishes between starting and general recursive case
+                derivative_index = ('C',i) if n == 0 else ('a',layer_level,a_index,i) 
+                partial = self.DPPartial(*derivative_index)
+                result += partial * self.backProp(variable, n+1, i)
+            return result
         
     def doGradientDescent(self, batch_size = 1):
         for i in range(self.size - 1):
@@ -169,145 +169,39 @@ class SimpleNN:
                             first_neuron = result
                     yield ('w', i, j, k, result)
 
-#start = time.time()
-#print('hello world')
-#end = time.time()
-#print(end - start)
-
 """
 TESTING BACKPROPAGATION
 """
 
-#a = SimpleNN(2, 2, 3, 2)
-#a.feedForward()
-#def calculate_test1():
-#    t = 0
-#    dadw = a.neurons[0][0]*a.neurons[1][1]*(1-a.neurons[1][1])
-#    for i in range(3):
-#        subtotal = 0
-#        dcda = a.dcda(i)
-#        for j in range(2):
-#            a3a2 = a.weights[2][i][j]*a.neurons[3][i]*(1-a.neurons[3][i]) 
-#            a2a1 = a.weights[1][j][1]*a.neurons[2][j]*(1-a.neurons[2][j]) 
-#            subtotal += dadw*a3a2*a2a1
-#        t += dcda*subtotal
-#    return t
-#
-#def calculate_test2():
-#    t = 0
-#    dadw = a.neurons[1][1]*a.neurons[2][1]*(1-a.neurons[2][1])
-#    for i in range(3):
-#        dcda = 2*(a.neurons[3][i]-1) if i == a.expected else 2*a.neurons[3][i]
-#        dada = a.neurons[3][i]*(1-a.neurons[3][i])*a.weights[2][i][1]
-#        t += dcda*dada*dadw
-#    return t
-#   
-#    
-#def calculate_test3():
-#    return 2*(a.neurons[3][2]-1)*a.neurons[2][0]*a.neurons[3][2]*(1-a.neurons[3][2])
-#
-#print(calculate_test1(), a.backProp(('w', (0,1,0))))
-#print(calculate_test2(), a.backProp(('w', (1,1,1))))
-#print(calculate_test3(), a.backProp(('w', (2,2,0))))
+a = SimpleNN(2, 2, 3, 2)
+a.feedForward()
+def calculate_test1():
+    t = 0
+    dadw = a.neurons[0][0]*a.neurons[1][1]*(1-a.neurons[1][1])
+    for i in range(3):
+        subtotal = 0
+        dcda = a.dcda(i)
+        for j in range(2):
+            a3a2 = a.weights[2][i][j]*a.neurons[3][i]*(1-a.neurons[3][i]) 
+            a2a1 = a.weights[1][j][1]*a.neurons[2][j]*(1-a.neurons[2][j]) 
+            subtotal += dadw*a3a2*a2a1
+        t += dcda*subtotal
+    return t
 
-def do_training(rounds, batch_size, layers, layer_size, class_range, input_size):
-    network = SimpleNN(layers, layer_size, class_range, input_size)
-    for i in range(rounds):
-        run_training_one_round(batch_size, layers, layer_size, class_range, input_size, network)
-        
-
-def run_training_one_round(batch_size, layers, layer_size, class_range, input_size, network):
-    biases = np.array([[0 for j in range(len(network.neurons[i+1]))] for i in range(network.size-1)])
-    weights = np.array([[[0 for k in range(len(network.neurons[i]))]
-                                          for j in range(len(network.neurons[i+1]))]
-                                          for i in range(network.size - 1)])
-    for i in range(batch_size):
-        network.loadImage(training_data[i])
-        network.feedForward()
-        gradients = network.doGradientDescent(batch_size)
-        for j in gradients:
-            if j[0] == 'w':
-                weights[j[1]][j[2]][j[3]] += j[-1]
-            else:
-                biases[j[1]][j[2]] += j[-1]
-    network.biases -= biases
-    network.weights -= weights
-        
-        
-"""
-TESTING LEARNING ON 1 SAMPLE
-"""
-#costs = []
-#start = time.time()
-#b = SimpleNN(2,16,10,784)
-#
-#
-#for i in range(1000):
-##    LR = 1 if i > 10 else 12
-#    b.feedForward()
-#    gradients = b.doGradientDescent()
-#    if i % 50 == 0:
-#        print('Cost at round {}: '.format(i), b.calculateError())
-#    for j in gradients:
-#        if j[0] == 'w':
-#            b.weights[j[1]][j[2]][j[3]] -= j[-1]
-#        else:
-#            b.biases[j[1]][j[2]] -= j[-1]
-#    costs.append(b.calculateError())
-#            
-#print('------------------')
-#print('Results:')
-#classified = np.argmax(b.neurons[-1])
-#print('Classified as: ', classified, ', Activation value: ', b.neurons[-1][classified])
-#if classified == b.expected:
-#    print('The network correctly identified the image!')
-#else:
-#    print('Incorrect. The network misclassified the image as a ' + str(classified) + ' when it was a ' + str(b.expected))
-#print('Final cost: ' + str(b.calculateError()))
-#end = time.time()
-#print('Time to complete: ' + str(end-start) + ' seconds')
-#
-#f1 = plt.figure()
-#plt.plot([i for i in range(1000)], costs)
-#plt.title('Cost over training steps')
-#plt.xlabel("Training steps")
-#plt.ylabel("Cost")
-#
-#f2 = plt.figure()
-#plt.bar([i for i in range(10)], b.neurons[-1])
-#plt.title('Final layer activatations')
-#plt.xticks([i for i in range(10)])
-#plt.xlabel('Activation range')
-#plt.ylabel('Activation degree')
-#
-#plt.show()
-
-
-
-def find_strings(string, color):
-    result = 0
-    start_index = None
-    in_range = False
-    for i in range(len(string)):
-        if string[i] == color and not in_range:
-            start_index = i
-            in_range = True
-        elif string[i] != color or i == len(string)-1:
-            if in_range and i-start_index >= 3:
-               result += i-start_index-2
-            if i == len(string) - 1:
-                result += 1
-            in_range = False
-            start_index = None
-    return result
-
-def run_game(string):
-    white = find_strings(string, 'w')
-    black = find_strings(string, 'b')
-    print(white, black)
-    winner = 'white' if white > black else 'black'
-    result = 'The winner is ' + winner
-    return result
+def calculate_test2():
+    t = 0
+    dadw = a.neurons[1][1]*a.neurons[2][1]*(1-a.neurons[2][1])
+    for i in range(3):
+        dcda = 2*(a.neurons[3][i]-1) if i == a.expected else 2*a.neurons[3][i]
+        dada = a.neurons[3][i]*(1-a.neurons[3][i])*a.weights[2][i][1]
+        t += dcda*dada*dadw
+    return t
+   
     
+def calculate_test3():
+    return 2*(a.neurons[3][2]-1)*a.neurons[2][0]*a.neurons[3][2]*(1-a.neurons[3][2])
 
+print(calculate_test1(), a.backProp(('w', (0,1,0))))
+print(calculate_test2(), a.backProp(('w', (1,1,1))))
+print(calculate_test3(), a.backProp(('w', (2,2,0))))
 
